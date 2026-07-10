@@ -53,3 +53,14 @@ def cargar_labels(ruta):
     with gzip.open(ruta, 'rb') as f:
         f.read(8)
         return np.frombuffer(f.read(), dtype=np.uint8)
+
+def extract_patches(image, patch_size=7):
+    H, W = image.shape
+    shape = (H // patch_size, W // patch_size, patch_size, patch_size)
+    strides = (image.strides[0] * patch_size, image.strides[1] * patch_size, image.strides[0], image.strides[1])
+    return np.lib.stride_tricks.as_strided(image, shape=shape, strides=strides)
+
+
+def flatten_patches(patches):
+    num_patches_h, num_patches_w, p_h, p_w = patches.shape
+    return patches.reshape(num_patches_h * num_patches_w, p_h * p_w)
