@@ -287,3 +287,15 @@ def softmax_cross_entropy(logits, label):
     return loss, probs, d_logits
 
 
+
+def precision_macro(y_true, y_pred, num_clases):
+ 
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(y_pred)
+    precisiones = np.zeros(num_clases)
+    for c in range(num_clases):
+        tp = np.sum((y_pred == c) & (y_true == c))
+        fp = np.sum((y_pred == c) & (y_true != c))
+        if tp + fp > 0:
+            precisiones[c] = tp / (tp + fp)
+    return float(np.mean(precisiones))
