@@ -278,4 +278,12 @@ class HopfieldKohonenViT:
             head_W=self.head.W, head_b=self.head.b,
         )
 
+def softmax_cross_entropy(logits, label):
+    exps = np.exp(logits - np.max(logits))
+    probs = exps / np.sum(exps)
+    loss = -np.log(probs[label] + 1e-12)
+    d_logits = probs.copy()
+    d_logits[label] -= 1.0
+    return loss, probs, d_logits
+
 
