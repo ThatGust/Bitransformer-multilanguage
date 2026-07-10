@@ -213,3 +213,69 @@ class ModernHopfieldLayer:
         self.W_pattern_in -= lr * dW_pat_in
         return dx
 
+
+
+class HopfieldKohonenViT:
+    def __init__(self):
+        self.embed = KohonenPatchEmbedding(patch_dim=49, grid_size=8, hidden_dim=64, num_patches=16)
+
+        self.ln1 = LayerNorm(64)
+        self.hopfield = ModernHopfieldLayer(64)
+        self.ln2 = LayerNorm(64)
+        self.mlp_l1 = Linear(64, 128)
+        self.mlp_relu = ReLU()
+        self.mlp_l2 = Linear(128, 64)
+
+        self.norm_final = LayerNorm(64)
+        self.head = Linear(64, NUM_CLASES)
+
+    def forward(self, image, train=True, som_lr=0.1, sigma=1.5):
+        patches = flatten_patches(extract_patches(image, 7))
+
+        x = self.embed.forward(patches, train_som=train, som_lr=som_lr, sigma=sigma)
+
+        self.res1 = x
+        x_norm1 = self.ln1.forward(x)
+        hopfield_out = self.hopfield.forward(x_norm1)
+        self.res2 = self.res1 + hopfield_out  
+
+     
+        res2_cls = self.res2[0:1, :]
+        x_norm2_cls = self.ln2.forward(res2_cls)
+        mlp_out_cls = self.mlp_l2.forward(self.mlp_relu.forward(self.mlp_l1.forward(x_norm2_cls)))
+        self.final_cls = res2_cls + mlp_out_cls
+
+        return self.head.forward(self.norm_final.forward(self.final_cls))[0]
+
+    def backward(self, d_logits, lr):
+        d_cls_norm = self.head.backward(d_logits.reshape(1, -1), lr)
+        d_final_cls = self.norm_final.backward(d_cls_norm, lr)
+
+        d_ln2_in = self.mlp_l1.backward(self.mlp_relu.backward(self.mlp_l2.backward(d_final_cls, lr), lr), lr)
+        d_res2_cls = d_final_cls + self.ln2.backward(d_ln2_in, lr)
+
+        d_hop_out = np.zeros_like(self.res2)
+        d_hop_out[0:1, :] = d_res2_cls
+
+        d_ln1_in = self.hopfield.backward(d_hop_out, lr)
+        d_embed_out = d_hop_out + self.ln1.backward(d_ln1_in, lr)
+
+        self.embed.backward(d_embed_out, lr)
+
+    def guardar_pesos(self, ruta):
+        np.savez(
+            ruta,
+            som_weights=self.embed.som_weights,
+            proj_W=self.embed.proj.W, proj_b=self.embed.proj.b,
+            cls_token=self.embed.cls_token, pos_embed=self.embed.pos_embed,
+            ln1_gamma=self.ln1.gamma, ln1_beta=self.ln1.beta,
+            hop_W_state=self.hopfield.W_state, hop_W_pattern_in=self.hopfield.W_pattern_in,
+            hop_W_pattern_out=self.hopfield.W_pattern_out, hop_W_proj=self.hopfield.W_proj,
+            ln2_gamma=self.ln2.gamma, ln2_beta=self.ln2.beta,
+            mlp_l1_W=self.mlp_l1.W, mlp_l1_b=self.mlp_l1.b,
+            mlp_l2_W=self.mlp_l2.W, mlp_l2_b=self.mlp_l2.b,
+            norm_final_gamma=self.norm_final.gamma, norm_final_beta=self.norm_final.beta,
+            head_W=self.head.W, head_b=self.head.b,
+        )
+
+
