@@ -109,3 +109,59 @@ class LayerNorm:
         return dx
 
 
+class ReLU:
+    def forward(self, x):
+        self.mask = x > 0
+        return x * self.mask
+
+    def backward(self, dout, lr):
+        return dout * self.mask
+
+
+
+
+class KohonenPatchEmbedding:
+
+
+    def __init__(self, patch_dim=49, grid_size=8, hidden_dim=64, num_patches=16):
+        self.grid_size = grid_size
+        num_som_nodes = grid_size * grid_size
+
+        self.som_weights = np.random.rand(num_som_nodes, patch_dim)
+
+        gy, gx = np.meshgrid(np.arange(grid_size), np.arange(grid_size), indexing='ij')
+        self.grid_coords = np.stack([gy.ravel(), gx.ravel()], axis=1).astype(np.float32)  
+
+        self.proj = Linear(num_som_nodes, hidden_dim)
+        self.cls_token = np.random.randn(1, hidden_dim) * 0.01
+        self.pos_embed = np.random.randn(num_patches + 1, hidden_dim) * 0.01
+
+    def forward(self, patches, train_som=True, som_lr=0.1, sigma=1.5):
+        if train_som:
+            for patch in patches:
+                dist = np.linalg.norm(self.som_weights - patch, axis=1)
+                bmu_idx = np.argmin(dist)
+
+                
+                grid_dist_sq = np.sum((self.grid_coords - self.grid_coords[bmu_idx]) ** 2, axis=1)
+                vecindad = np.exp(-grid_dist_sq / (2.0 * sigma ** 2 + 1e-8))
+
+                
+                self.som_weights += (som_lr * vecindad)[:, None] * (patch - self.som_weights)
+
+
+        dists = np.linalg.norm(self.som_weights[None, :, :] - patches[:, None, :], axis=2)  
+        dists_norm = dists / (np.max(dists, axis=1, keepdims=True) + 1e-8)
+        som_activations = np.exp(-dists_norm ** 2)
+
+        patch_embs = self.proj.forward(som_activations)
+        embs = np.vstack([self.cls_token, patch_embs])
+        return embs + self.pos_embed
+
+    def backward(self, dout, lr):
+        self.pos_embed -= lr * dout
+        self.cls_token -= lr * dout[0:1, :]
+        
+        _ = self.proj.backward(dout[1:, :], lr)
+
+
