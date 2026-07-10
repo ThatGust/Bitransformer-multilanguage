@@ -299,3 +299,73 @@ def precision_macro(y_true, y_pred, num_clases):
         if tp + fp > 0:
             precisiones[c] = tp / (tp + fp)
     return float(np.mean(precisiones))
+
+def main():
+    print("Cargando EMNIST...")
+    X_full = cargar_imagenes(RUTA_IMAGENES).astype(np.float32) / 255.0
+    y_full = cargar_labels(RUTA_LABELS)
+
+    n_disponibles = min(MUESTRAS_TOTAL, len(X_full))
+    indices = rng.permutation(len(X_full))[:n_disponibles]
+
+    n_val = int(n_disponibles * FRACCION_VAL)
+    idx_val = indices[:n_val]
+    idx_train = indices[n_val:]
+
+    X_train, y_train = X_full[idx_train], y_full[idx_train]
+    X_val, y_val = X_full[idx_val], y_full[idx_val]
+
+    print(f"Muestras de entrenamiento: {len(X_train)} | Muestras de validación: {len(X_val)}")
+
+    modelo = HopfieldKohonenViT()
+
+    
+    with open(RUTA_CSV_METRICAS, "w", newline="") as f_csv:
+        writer = csv.writer(f_csv)
+        writer.writerow([
+            "epoca", "tiempo_seg",
+            "train_loss", "train_acc", "train_precision",
+            "val_loss", "val_acc", "val_precision",
+            "som_lr", "sigma", "som_entrenandose"
+        ])
+
+    print("\n--- INICIANDO ENTRENAMIENTO HÍBRIDO (KOHONEN + HOPFIELD) ---")
+
+    for epoca in range(EPOCAS):
+        inicio = time.time()
+
+        
+        progreso = epoca / max(EPOCAS_ENTRENAMIENTO_SOM - 1, 1)
+        progreso = min(progreso, 1.0)
+        som_lr = SOM_LR_INICIAL * (SOM_LR_FINAL / SOM_LR_INICIAL) ** progreso
+        sigma = SIGMA_INICIAL * (SIGMA_FINAL / SIGMA_INICIAL) ** progreso
+        som_entrenandose = epoca < EPOCAS_ENTRENAMIENTO_SOM
+
+        
+        orden = rng.permutation(len(X_train))
+
+        perdida_total = 0.0
+        etiquetas_reales_train = np.empty(len(X_train), dtype=np.int64)
+        etiquetas_pred_train = np.empty(len(X_train), dtype=np.int64)
+
+        for pos, i in enumerate(orden):
+            imagen = X_train[i]
+            label = int(y_train[i])
+
+            logits = modelo.forward(imagen, train=som_entrenandose, som_lr=som_lr, sigma=sigma)
+            loss, probs, d_logits = softmax_cross_entropy(logits, label)
+            perdida_total += loss
+
+            pred = int(np.argmax(probs))
+            etiquetas_reales_train[pos] = label
+            etiquetas_pred_train[pos] = pred
+
+            modelo.backward(d_logits, lr=TASA_APRENDIZAJE)
+
+            if (pos + 1) % 5000 == 0:
+                print(f"Época {epoca + 1} | Paso {pos + 1}/{len(X_train)} | Loss actual: {loss:.4f}")
+
+        train_loss = perdida_total / len(X_train)
+        train_acc = float(np.mean(etiquetas_pred_train == etiquetas_reales_train))
+        train_prec = precision_macro(etiquetas_reales_train, etiquetas_pred_train, NUM_CLASES)
+        
