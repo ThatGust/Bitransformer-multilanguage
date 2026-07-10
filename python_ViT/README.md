@@ -156,3 +156,90 @@ $$
 Esta función introduce no linealidad y evita que el modelo aprenda únicamente relaciones lineales.
 
 ---
+# Layer Normalization
+
+Antes de cada bloque principal se aplica **Layer Normalization**, calculada como:
+
+$$
+LN(x)=\gamma\frac{x-\mu}{\sqrt{\sigma^2+\epsilon}}+\beta
+$$
+
+Esta técnica estabiliza el entrenamiento y acelera la convergencia del modelo.
+
+---
+
+# Función de pérdida
+
+La clasificación utiliza la función **Softmax Cross Entropy**.
+
+Softmax:
+
+$$
+P_i=\frac{e^{z_i}}{\sum_j e^{z_j}}
+$$
+
+Cross Entropy:
+
+$$
+L=-\log(P_{real})
+$$
+
+---
+
+
+# Archivos generados
+
+- `modelo_final.npz` → pesos entrenados del modelo.
+- `metricas_entrenamiento.csv` → Accuracy, Loss y Precisión por época.
+
+---
+
+# Tecnologías utilizadas
+
+- Python
+- NumPy
+- Gzip
+- CSV
+
+---
+
+# Resultados del entrenamiento
+
+El modelo fue entrenado utilizando el conjunto de datos **EMNIST Balanced** durante **10 épocas**, obteniendo una precisión de clasificación superior al **98 %** en el conjunto de validación.
+
+Durante el entrenamiento se registraron las siguientes métricas:
+
+- Accuracy de entrenamiento
+- Accuracy de validación
+- Training Loss
+- Validation Loss
+
+Los pesos finales del modelo fueron almacenados en un archivo `.npz`, el cual contiene todos los parámetros necesarios para reconstruir el Vision Transformer sin necesidad de volver a entrenarlo.
+
+## Accuracy
+
+<div align="center">
+
+![Accuracy](acc.png)
+
+</div>
+
+*Figura 1. Evolución del Accuracy durante el entrenamiento.*
+
+---
+
+## Loss
+
+<div align="center">
+
+![Loss](loss.png)
+
+</div>
+
+*Figura 2. Evolución de la función de pérdida durante el entrenamiento.*
+
+Durante las primeras épocas se observa una rápida disminución de la pérdida, mientras que el accuracy aumenta progresivamente hasta estabilizarse, indicando que el modelo converge correctamente y logra una buena capacidad de generalización.
+
+# Autor
+
+Proyecto desarrollado como implementación desde cero de un **Vision Transformer híbrido (Kohonen + Modern Hopfield)** para la clasificación de caracteres del conjunto de datos **EMNIST Balanced**.
