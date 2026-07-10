@@ -64,3 +64,48 @@ def extract_patches(image, patch_size=7):
 def flatten_patches(patches):
     num_patches_h, num_patches_w, p_h, p_w = patches.shape
     return patches.reshape(num_patches_h * num_patches_w, p_h * p_w)
+
+class Linear:
+    def __init__(self, d_in, d_out):
+        self.W = np.random.randn(d_in, d_out) * np.sqrt(2.0 / d_in)
+        self.b = np.zeros(d_out)
+
+    def forward(self, x):
+        self.x = x
+        return x @ self.W + self.b
+
+    def backward(self, dout, lr):
+        dW = self.x.T @ dout
+        db = np.sum(dout, axis=0)
+        dx = dout @ self.W.T
+        self.W -= lr * dW
+        self.b -= lr * db
+        return dx
+
+
+class LayerNorm:
+    def __init__(self, d, eps=1e-5):
+        self.gamma = np.ones(d)
+        self.beta = np.zeros(d)
+        self.eps = eps
+
+    def forward(self, x):
+        self.x = x
+        self.mu = np.mean(x, axis=-1, keepdims=True)
+        self.var = np.var(x, axis=-1, keepdims=True)
+        self.std = np.sqrt(self.var + self.eps)
+        self.x_norm = (x - self.mu) / self.std
+        return self.gamma * self.x_norm + self.beta
+
+    def backward(self, dout, lr):
+        D = self.x.shape[-1]
+        dx_norm = dout * self.gamma
+        dvar = np.sum(dx_norm * (self.x - self.mu) * -0.5 * (self.var + self.eps) ** (-1.5), axis=-1, keepdims=True)
+        dmu = np.sum(dx_norm * -1.0 / self.std, axis=-1, keepdims=True) + dvar * np.mean(-2.0 * (self.x - self.mu), axis=-1, keepdims=True)
+        dx = (dx_norm / self.std) + (dvar * 2.0 * (self.x - self.mu) / D) + (dmu / D)
+
+        self.gamma -= lr * np.sum(dout * self.x_norm, axis=0)
+        self.beta -= lr * np.sum(dout, axis=0)
+        return dx
+
+
