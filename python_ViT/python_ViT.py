@@ -165,3 +165,51 @@ class KohonenPatchEmbedding:
         _ = self.proj.backward(dout[1:, :], lr)
 
 
+class ModernHopfieldLayer:
+    def __init__(self, d_model):
+        scale = np.sqrt(1.0 / d_model)
+        self.W_state = np.random.randn(d_model, d_model) * scale
+        self.W_pattern_in = np.random.randn(d_model, d_model) * scale
+        self.W_pattern_out = np.random.randn(d_model, d_model) * scale
+        self.W_proj = np.random.randn(d_model, d_model) * scale
+
+    def forward(self, x):
+        self.x = x
+        self.State = x @ self.W_state
+        self.Pattern_In = x @ self.W_pattern_in
+        self.Pattern_Out = x @ self.W_pattern_out
+
+        beta = 1.0 / np.sqrt(self.State.shape[-1])
+        self.energy_scores = (self.State @ self.Pattern_In.T) * beta
+
+        exps = np.exp(self.energy_scores - np.max(self.energy_scores, axis=-1, keepdims=True))
+        self.Hopfield_Matrix = exps / np.sum(exps, axis=-1, keepdims=True)
+
+        self.new_state = self.Hopfield_Matrix @ self.Pattern_Out
+        return self.new_state @ self.W_proj
+
+    def backward(self, dout, lr):
+        dW_proj = self.new_state.T @ dout
+        dContext = dout @ self.W_proj.T
+
+        dPatOut = self.Hopfield_Matrix.T @ dContext
+        dW_pat_out = self.x.T @ dPatOut
+
+        dHop = dContext @ self.Pattern_Out.T
+        beta = 1.0 / np.sqrt(self.State.shape[-1])
+        dScores = self.Hopfield_Matrix * (dHop - np.sum(dHop * self.Hopfield_Matrix, axis=-1, keepdims=True)) * beta
+
+        dState = dScores @ self.Pattern_In
+        dW_state = self.x.T @ dState
+
+        dPatIn = dScores.T @ self.State
+        dW_pat_in = self.x.T @ dPatIn
+
+        dx = dState @ self.W_state.T + dPatIn @ self.W_pattern_in.T + dPatOut @ self.W_pattern_out.T
+
+        self.W_proj -= lr * dW_proj
+        self.W_pattern_out -= lr * dW_pat_out
+        self.W_state -= lr * dW_state
+        self.W_pattern_in -= lr * dW_pat_in
+        return dx
+
