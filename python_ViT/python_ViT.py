@@ -368,4 +368,48 @@ def main():
         train_loss = perdida_total / len(X_train)
         train_acc = float(np.mean(etiquetas_pred_train == etiquetas_reales_train))
         train_prec = precision_macro(etiquetas_reales_train, etiquetas_pred_train, NUM_CLASES)
+
+
+        perdida_val = 0.0
+        etiquetas_reales_val = np.empty(len(X_val), dtype=np.int64)
+        etiquetas_pred_val = np.empty(len(X_val), dtype=np.int64)
+
+        for j in range(len(X_val)):
+            imagen = X_val[j]
+            label = int(y_val[j])
+            logits = modelo.forward(imagen, train=False, som_lr=0.0, sigma=sigma)
+            loss, probs, _ = softmax_cross_entropy(logits, label)
+            perdida_val += loss
+            etiquetas_reales_val[j] = label
+            etiquetas_pred_val[j] = int(np.argmax(probs))
+
+        val_loss = perdida_val / max(len(X_val), 1)
+        val_acc = float(np.mean(etiquetas_pred_val == etiquetas_reales_val)) if len(X_val) else 0.0
+        val_prec = precision_macro(etiquetas_reales_val, etiquetas_pred_val, NUM_CLASES) if len(X_val) else 0.0
+
+        tiempo = time.time() - inicio
+
+        
+        print("-" * 70)
+        print(f"RESUMEN ÉPOCA {epoca + 1}/{EPOCAS} (tiempo: {tiempo:.2f}s | SOM {'entrenando' if som_entrenandose else 'congelado'}, lr={som_lr:.4f}, sigma={sigma:.3f})")
+        print(f"  TRAIN -> Loss: {train_loss:.4f} | Acc: {train_acc * 100:.2f}% | Precisión: {train_prec * 100:.2f}%")
+        print(f"  VAL   -> Loss: {val_loss:.4f} | Acc: {val_acc * 100:.2f}% | Precisión: {val_prec * 100:.2f}%")
+        print("-" * 70)
+
+        
+        with open(RUTA_CSV_METRICAS, "a", newline="") as f_csv:
+            writer = csv.writer(f_csv)
+            writer.writerow([
+                epoca + 1, f"{tiempo:.2f}",
+                f"{train_loss:.6f}", f"{train_acc:.6f}", f"{train_prec:.6f}",
+                f"{val_loss:.6f}", f"{val_acc:.6f}", f"{val_prec:.6f}",
+                f"{som_lr:.6f}", f"{sigma:.6f}", som_entrenandose
+            ])
+
+    modelo.guardar_pesos(RUTA_PESOS_FINALES)
+    print(f"\n¡Entrenamiento finalizado! Métricas guardadas en '{RUTA_CSV_METRICAS}' y pesos en '{RUTA_PESOS_FINALES}'.")
+
+
+if __name__ == "__main__":
+    main()
         
