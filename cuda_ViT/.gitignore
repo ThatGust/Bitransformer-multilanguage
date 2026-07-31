@@ -1,0 +1,26 @@
+# Binarios compilados
+bin/
+*.o
+*.obj
+
+# mnist_processed.npz pesa 220 MB y supera el limite de 100 MB por archivo de
+# GitHub. Ademas es redundante: el pipeline en C/CUDA lee directamente los
+# .ubyte, que si estan versionados. Solo servia para chequeos rapidos en Python.
+data/mnist_processed.npz
+
+# Artefactos intermedios de LaTeX (tectonic no los deja, pero pdflatex si)
+*.aux
+*.log
+*.bbl
+*.blg
+*.out
+*.toc
+*.synctex.gz
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store

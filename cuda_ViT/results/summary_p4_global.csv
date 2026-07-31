@@ -1,0 +1,2 @@
+tag,patch,n_patches,n_tokens,attn_mem,d_model,heads,blocks,params,train_n,test_n,batch,epochs,test_acc,best_test_acc,test_loss,train_total_sec,epoch_sec_mean,infer_ms_per_batch,gpu_mem_mib
+p4_global,4,49,50,global,64,4,2,72074,5000,2000,64,3,0.793000,0.793000,0.659367,1.072,0.357,1.2871,112.0

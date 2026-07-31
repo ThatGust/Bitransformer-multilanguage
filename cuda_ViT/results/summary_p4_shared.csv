@@ -1,0 +1,2 @@
+tag,patch,n_patches,n_tokens,attn_mem,d_model,heads,blocks,params,train_n,test_n,batch,epochs,test_acc,best_test_acc,test_loss,train_total_sec,epoch_sec_mean,infer_ms_per_batch,gpu_mem_mib
+p4_shared,4,49,50,shared,64,4,2,72074,5000,2000,64,15,0.869500,0.874000,0.482483,5.314,0.354,1.2030,112.0

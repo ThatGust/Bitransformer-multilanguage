@@ -1,0 +1,14 @@
+% Generado por scripts/make_report_assets.py -- no editar a mano
+\begin{tabular}{llrrrrr}
+\toprule
+Kernel & Parche & $T$ & Global & Compartida & Speedup & GFLOP/s \\
+ & & & ($\mu$s) & ($\mu$s) & & (compartida) \\
+\midrule
+$P \cdot V$ & $4\times4$ & 50 & 38.2 & 55.8 & 0.69$\times$ & 367.2 \\
+$P \cdot V$ & $7\times7$ & 17 & 6.6 & 13.6 & 0.49$\times$ & 174.4 \\
+$P \cdot V$ & $14\times14$ & 5 & 3.0 & 4.8 & 0.62$\times$ & 42.3 \\
+$QK^{T}$ & $4\times4$ & 50 & 119.1 & 57.3 & 2.08$\times$ & 357.6 \\
+$QK^{T}$ & $7\times7$ & 17 & 19.3 & 14.7 & 1.31$\times$ & 160.7 \\
+$QK^{T}$ & $14\times14$ & 5 & 4.0 & 4.9 & 0.82$\times$ & 41.5 \\
+\bottomrule
+\end{tabular}
